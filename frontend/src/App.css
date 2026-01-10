@@ -1,0 +1,804 @@
+/**
+ * Mobile-first styles for NFL Predictor
+ *
+ * Design principles:
+ * - Large touch targets (min 44px)
+ * - High contrast for readability
+ * - Stacked layout for mobile
+ * - Progressive enhancement for larger screens
+ */
+
+/* ============================================================================
+   Layout
+   ============================================================================ */
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.main {
+  flex: 1;
+  padding: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.footer {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 1rem;
+  text-align: center;
+  color: white;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* ============================================================================
+   Week Header
+   ============================================================================ */
+
+.week-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.week-header h2 {
+  font-size: 1.3rem;
+  color: #333;
+  margin: 0;
+}
+
+.refresh-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-button:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.refresh-button:active {
+  transform: translateY(0);
+}
+
+/* ============================================================================
+   Game Cards Container
+   ============================================================================ */
+
+.games-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ============================================================================
+   Game Card
+   ============================================================================ */
+
+.game-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.game-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================================================
+   Matchup Section
+   ============================================================================ */
+
+.matchup {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.team {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.team-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.team-label {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+/* Winner styling */
+.team.winner .team-name {
+  color: #10b981;
+}
+
+.team.loser .team-name {
+  color: #6b7280;
+}
+
+/* Elo rating */
+.elo {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* VS divider */
+.vs {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #999;
+  padding: 0.5rem 0;
+}
+
+/* ============================================================================
+   Probability Section
+   ============================================================================ */
+
+.probability {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.prob-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #667eea;
+  min-width: 60px;
+}
+
+.prob-bar-container {
+  flex: 1;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.prob-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+.prob-bar.home {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.prob-bar.away {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+/* ============================================================================
+   Winner Badge
+   ============================================================================ */
+
+.predicted-winner {
+  text-align: center;
+  margin: 1rem 0;
+  padding-top: 1rem;
+  border-top: 2px solid #f0f0f0;
+}
+
+.winner-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* ============================================================================
+   Explanation Section
+   ============================================================================ */
+
+.explanation {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.explanation h4 {
+  font-size: 0.9rem;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.explanation p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #4b5563;
+  margin: 0;
+}
+
+/* ============================================================================
+   Loading, Error, Empty States
+   ============================================================================ */
+
+.loading,
+.error,
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: white;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading p,
+.error p,
+.empty p {
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
+}
+
+.retry-button {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.2s;
+}
+
+.retry-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+/* Tablet and larger */
+@media (min-width: 640px) {
+  .title {
+    font-size: 2.5rem;
+  }
+
+  .main {
+    padding: 2rem;
+  }
+
+  .game-card {
+    padding: 2rem;
+  }
+
+  .team-name {
+    font-size: 1.5rem;
+  }
+
+  .prob-value {
+    font-size: 1.8rem;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .games-container {
+    gap: 2rem;
+  }
+
+  .matchup {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .team {
+    flex: 1;
+  }
+
+  .vs {
+    flex-shrink: 0;
+    padding: 0 2rem;
+  }
+}
+
+/* ============================================================================
+   Analytics Button
+   ============================================================================ */
+
+.analytics-button-container {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.analytics-button {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  min-height: 44px;
+}
+
+.analytics-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.analytics-button:active {
+  transform: translateY(0);
+}
+
+/* ============================================================================
+   Analytics Modal
+   ============================================================================ */
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.modal-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0;
+}
+
+.modal-close {
+  background: #f3f4f6;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: #666;
+}
+
+.modal-close:hover {
+  background: #e5e7eb;
+  color: #333;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-loading,
+.modal-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.modal-loading .spinner {
+  border-color: rgba(102, 126, 234, 0.3);
+  border-top-color: #667eea;
+}
+
+/* ============================================================================
+   Analytics Sections
+   ============================================================================ */
+
+.analytics-section {
+  margin-bottom: 2rem;
+}
+
+.analytics-section h3 {
+  font-size: 1.2rem;
+  color: #667eea;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 0.5rem;
+}
+
+.section-description {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.section-note {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 1rem;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Prediction Summary */
+.prediction-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.pred-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pred-label {
+  font-weight: 600;
+  color: #666;
+}
+
+.pred-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.winner-text {
+  color: #10b981;
+  font-size: 1.2rem;
+}
+
+/* Team Stats Comparison */
+.stats-comparison {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.stat-label {
+  font-weight: 600;
+  color: #666;
+  grid-column: 1 / -1;
+  margin-bottom: 0.25rem;
+}
+
+.stat-values {
+  display: flex;
+  justify-content: space-between;
+  grid-column: 1 / -1;
+}
+
+.stat-home {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.stat-away {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f59e0b;
+}
+
+.stats-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.legend-home {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.legend-away {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.legend-vs {
+  color: #999;
+}
+
+/* Feature Breakdown */
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.feature-item {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.feature-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.feature-name {
+  font-weight: 700;
+  color: #333;
+  font-size: 1rem;
+}
+
+.feature-contribution {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+}
+
+.feature-contribution.positive {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.feature-contribution.negative {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.feature-details {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.feature-detail {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.feature-description {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.contribution-bar-container {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.contribution-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.contribution-bar.positive {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.contribution-bar.negative {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* Model Info */
+.model-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.info-item {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+}
+
+.info-value {
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 700;
+}
+
+/* ============================================================================
+   Responsive Modal Design
+   ============================================================================ */
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 0;
+  }
+
+  .modal-content {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal-header {
+    padding: 1rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .analytics-section h3 {
+    font-size: 1.1rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .prediction-summary {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+  .stat-row {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+
+  .stat-label {
+    grid-column: 1;
+    margin-bottom: 0;
+  }
+
+  .stat-values {
+    grid-column: 2 / -1;
+  }
+}

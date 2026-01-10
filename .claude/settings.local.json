@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python main.py:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(curl:*)",
+      "Bash(npm install)",
+      "Bash(npm start)",
+      "Bash(ping:*)",
+      "Bash(python:*)"
+    ]
+  }
+}
