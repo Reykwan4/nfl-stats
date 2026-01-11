@@ -441,6 +441,81 @@ function AnalyticsModal({ data, loading, onClose }) {
                 </div>
               )}
 
+              {/* QB Breakdown */}
+              {data.qb_breakdown && (
+                <div className="analytics-section">
+                  <h3>Quarterback Stats</h3>
+                  <p className="section-description">
+                    Season quarterback performance metrics (real NFL data)
+                  </p>
+                  <div className="stats-comparison">
+                    <div className="stat-row">
+                      <div className="stat-label">Passer Rating</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.passer_rating : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.passer_rating : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Completion %</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.completion_pct + '%' : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.completion_pct + '%' : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Yards per Attempt</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.yards_per_attempt : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.yards_per_attempt : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">TD/INT Ratio</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.td_int_ratio : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.td_int_ratio : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Passing EPA</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.passing_epa : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.passing_epa : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stats-legend">
+                    <span className="legend-home">{data.home_team}</span>
+                    <span className="legend-vs">vs</span>
+                    <span className="legend-away">{data.away_team}</span>
+                  </div>
+                  <p className="section-note">
+                    QB stats are aggregated from nfl-data-py (season {data.qb_breakdown.home.season || '2024'})
+                  </p>
+                </div>
+              )}
+
               {/* Feature Breakdown */}
               <div className="analytics-section">
                 <h3>Feature Contributions</h3>

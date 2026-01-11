@@ -25,6 +25,7 @@ from sklearn.preprocessing import StandardScaler
 from typing import List, Dict, Any
 import os
 from pathlib import Path
+import nfl_data_py as nfl
 
 app = FastAPI(title="NFL Prediction API")
 
@@ -63,6 +64,172 @@ FEATURE_NAMES = [
     "away_to_margin",     # Away team's turnover margin
     "is_home"             # Binary: 1 for home team advantage
 ]
+
+# ============================================================================
+# QB STATS FETCHING
+# ============================================================================
+
+def fetch_qb_stats(seasons=[2024, 2023]) -> pd.DataFrame:
+    """
+    Fetch real QB stats from nfl_data_py for specified seasons.
+
+    Returns DataFrame with QB stats aggregated by team and season.
+    Includes: passer_rating, completions, attempts, yards, TDs, INTs, etc.
+    """
+    try:
+        print(f"Fetching QB stats for seasons: {seasons}...")
+        # Import weekly QB stats
+        weekly_data = nfl.import_weekly_data(seasons)
+
+        # Filter for QBs only
+        qb_data = weekly_data[weekly_data['position'] == 'QB'].copy()
+
+        # Aggregate by team and season (get primary QB stats)
+        qb_stats = qb_data.groupby(['recent_team', 'season']).agg({
+            'completions': 'sum',
+            'attempts': 'sum',
+            'passing_yards': 'sum',
+            'passing_tds': 'sum',
+            'interceptions': 'sum',
+            'sacks': 'sum',
+            'sack_yards': 'sum',
+            'passing_air_yards': 'sum',
+            'passing_yards_after_catch': 'sum',
+            'passing_epa': 'mean'  # Expected Points Added - advanced metric
+        }).reset_index()
+
+        # Calculate derived stats
+        qb_stats['completion_pct'] = (qb_stats['completions'] / qb_stats['attempts'] * 100).round(1)
+        qb_stats['yards_per_attempt'] = (qb_stats['passing_yards'] / qb_stats['attempts']).round(1)
+        qb_stats['td_int_ratio'] = (qb_stats['passing_tds'] / qb_stats['interceptions'].replace(0, 1)).round(2)
+
+        # Calculate passer rating (NFL formula)
+        qb_stats['passer_rating'] = calculate_passer_rating(
+            qb_stats['completions'],
+            qb_stats['attempts'],
+            qb_stats['passing_yards'],
+            qb_stats['passing_tds'],
+            qb_stats['interceptions']
+        )
+
+        print(f"Loaded QB stats for {len(qb_stats)} team-seasons")
+        return qb_stats
+
+    except Exception as e:
+        print(f"Error fetching QB stats: {e}")
+        print("Using placeholder QB stats...")
+        return create_placeholder_qb_stats()
+
+def calculate_passer_rating(completions, attempts, yards, tds, ints):
+    """
+    Calculate NFL passer rating using the official formula.
+    """
+    # Avoid division by zero
+    attempts = attempts.replace(0, 1)
+
+    a = ((completions / attempts) - 0.3) * 5
+    b = ((yards / attempts) - 3) * 0.25
+    c = (tds / attempts) * 20
+    d = 2.375 - ((ints / attempts) * 25)
+
+    # Clip values between 0 and 2.375
+    a = a.clip(0, 2.375)
+    b = b.clip(0, 2.375)
+    c = c.clip(0, 2.375)
+    d = d.clip(0, 2.375)
+
+    rating = ((a + b + c + d) / 6) * 100
+    return rating.round(1)
+
+def create_placeholder_qb_stats() -> pd.DataFrame:
+    """
+    Create placeholder QB stats if API fetch fails.
+    """
+    teams = ['Bills', 'Chiefs', 'Eagles', 'Cowboys', '49ers', 'Ravens',
+             'Dolphins', 'Bengals', 'Jaguars', 'Chargers']
+
+    data = []
+    for team in teams:
+        data.append({
+            'recent_team': team,
+            'season': 2024,
+            'completions': 350,
+            'attempts': 550,
+            'passing_yards': 4000,
+            'passing_tds': 30,
+            'interceptions': 10,
+            'completion_pct': 63.6,
+            'yards_per_attempt': 7.3,
+            'td_int_ratio': 3.0,
+            'passer_rating': 95.0,
+            'passing_epa': 0.15
+        })
+
+    return pd.DataFrame(data)
+
+# Team name mapping: Full name -> nfl-data-py abbreviation
+TEAM_NAME_MAP = {
+    'Bills': 'BUF', 'Chiefs': 'KC', 'Eagles': 'PHI', 'Cowboys': 'DAL',
+    '49ers': 'SF', 'Ravens': 'BAL', 'Dolphins': 'MIA', 'Bengals': 'CIN',
+    'Jaguars': 'JAX', 'Chargers': 'LAC', 'Lions': 'DET', 'Browns': 'CLE',
+    'Packers': 'GB', 'Seahawks': 'SEA', 'Vikings': 'MIN', 'Buccaneers': 'TB',
+    'Rams': 'LAR', 'Saints': 'NO', 'Steelers': 'PIT', 'Falcons': 'ATL',
+    'Patriots': 'NE', 'Broncos': 'DEN', 'Raiders': 'LV', 'Colts': 'IND',
+    'Jets': 'NYJ', 'Titans': 'TEN', 'Texans': 'HOU', 'Bears': 'CHI',
+    'Cardinals': 'ARI', 'Panthers': 'CAR', 'Giants': 'NYG', 'Commanders': 'WAS'
+}
+
+def get_team_qb_stats(team: str) -> dict:
+    """
+    Get QB stats for a specific team from the global qb_stats DataFrame.
+    Returns most recent season data (prefers 2024, fallback to 2023).
+    """
+    global qb_stats
+
+    # Map team name to abbreviation
+    team_abbr = TEAM_NAME_MAP.get(team, team)
+
+    if qb_stats is None or qb_stats.empty:
+        return {
+            "team": team,
+            "passer_rating": "N/A",
+            "completion_pct": "N/A",
+            "yards_per_attempt": "N/A",
+            "td_int_ratio": "N/A",
+            "passing_epa": "N/A",
+            "data_available": False
+        }
+
+    # Try to find team in 2024 first, then 2023
+    team_data = qb_stats[qb_stats['recent_team'] == team_abbr]
+
+    if team_data.empty:
+        return {
+            "team": team,
+            "passer_rating": "N/A",
+            "completion_pct": "N/A",
+            "yards_per_attempt": "N/A",
+            "td_int_ratio": "N/A",
+            "passing_epa": "N/A",
+            "data_available": False
+        }
+
+    # Prefer 2024 data, fallback to most recent season
+    if 2024 in team_data['season'].values:
+        stats = team_data[team_data['season'] == 2024].iloc[0]
+    else:
+        stats = team_data.sort_values('season', ascending=False).iloc[0]
+
+    return {
+        "team": team,
+        "passer_rating": float(stats['passer_rating']),
+        "completion_pct": float(stats['completion_pct']),
+        "yards_per_attempt": float(stats['yards_per_attempt']),
+        "td_int_ratio": float(stats['td_int_ratio']),
+        "passing_epa": round(float(stats['passing_epa']), 3),
+        "season": int(stats['season']),
+        "data_available": True
+    }
 
 # ============================================================================
 # DATA LOADING
@@ -577,13 +744,14 @@ scaler: StandardScaler = None
 elo_system: EloRatingSystem = None
 team_stats: pd.DataFrame = None
 historical_df: pd.DataFrame = None
+qb_stats: pd.DataFrame = None
 
 def initialize_model():
     """
     Load data, train model, and initialize global state.
     Called once on startup.
     """
-    global model, scaler, elo_system, team_stats, historical_df
+    global model, scaler, elo_system, team_stats, historical_df, qb_stats
 
     print("Loading historical data...")
     historical_df = load_historical_data()
@@ -599,6 +767,9 @@ def initialize_model():
 
     print("Calculating team statistics...")
     team_stats = calculate_rolling_averages(historical_df)
+
+    print("Fetching real QB stats...")
+    qb_stats = fetch_qb_stats(seasons=[2024, 2023])
 
     print("Model initialization complete!")
 
@@ -937,6 +1108,10 @@ async def get_game_analytics(home_team: str, away_team: str):
                     "pass_yards_allowed_avg": round(away_pass_yards_allowed, 1),
                     "total_yards_allowed_avg": round(away_rush_yards_allowed + away_pass_yards_allowed, 1)
                 }
+            },
+            "qb_breakdown": {
+                "home": get_team_qb_stats(home_team),
+                "away": get_team_qb_stats(away_team)
             },
             "feature_breakdown": feature_details_sorted,
             "model_info": {
