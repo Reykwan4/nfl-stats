@@ -248,6 +248,8 @@ function GameCard({ game, onViewAnalytics }) {
  * - Model information
  */
 function AnalyticsModal({ data, loading, onClose }) {
+  const [activeTab, setActiveTab] = useState('team'); // 'team', 'qb', 'coach'
+
   // Close modal when clicking outside
   const handleBackdropClick = (e) => {
     if (e.target.className === 'modal-backdrop') {
@@ -308,8 +310,33 @@ function AnalyticsModal({ data, loading, onClose }) {
                 </div>
               </div>
 
-              {/* Team Stats Comparison */}
-              <div className="analytics-section">
+              {/* Tab Navigation */}
+              <div className="analytics-tabs">
+                <button
+                  className={`tab-button ${activeTab === 'team' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('team')}
+                >
+                  Team Stats
+                </button>
+                <button
+                  className={`tab-button ${activeTab === 'qb' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('qb')}
+                >
+                  QB Stats
+                </button>
+                <button
+                  className={`tab-button ${activeTab === 'coach' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('coach')}
+                >
+                  Coach Stats
+                </button>
+              </div>
+
+              {/* Team Stats Tab */}
+              {activeTab === 'team' && (
+                <>
+                  {/* Team Stats Comparison */}
+                  <div className="analytics-section">
                 <h3>Team Statistics</h3>
                 <div className="stats-comparison">
                   <div className="stat-row">
@@ -356,25 +383,12 @@ function AnalyticsModal({ data, loading, onClose }) {
                     Detailed breakdown of rushing and passing offense (last {data.model_info.rolling_window} games)
                   </p>
                   <div className="stats-comparison">
+                    {/* Rushing Stats */}
                     <div className="stat-row">
                       <div className="stat-label">Rush Yards per Game</div>
                       <div className="stat-values">
                         <span className="stat-home">{data.offensive_breakdown.home.rush_yards_avg}</span>
                         <span className="stat-away">{data.offensive_breakdown.away.rush_yards_avg}</span>
-                      </div>
-                    </div>
-                    <div className="stat-row">
-                      <div className="stat-label">Pass Yards per Game</div>
-                      <div className="stat-values">
-                        <span className="stat-home">{data.offensive_breakdown.home.pass_yards_avg}</span>
-                        <span className="stat-away">{data.offensive_breakdown.away.pass_yards_avg}</span>
-                      </div>
-                    </div>
-                    <div className="stat-row">
-                      <div className="stat-label">Total Yards per Game</div>
-                      <div className="stat-values">
-                        <span className="stat-home">{data.offensive_breakdown.home.total_yards_avg}</span>
-                        <span className="stat-away">{data.offensive_breakdown.away.total_yards_avg}</span>
                       </div>
                     </div>
                     <div className="stat-row">
@@ -384,11 +398,46 @@ function AnalyticsModal({ data, loading, onClose }) {
                         <span className="stat-away">{data.offensive_breakdown.away.rush_tds_avg}</span>
                       </div>
                     </div>
+                    {/* Passing Stats */}
+                    <div className="stat-row">
+                      <div className="stat-label">Pass Yards per Game</div>
+                      <div className="stat-values">
+                        <span className="stat-home">{data.offensive_breakdown.home.pass_yards_avg}</span>
+                        <span className="stat-away">{data.offensive_breakdown.away.pass_yards_avg}</span>
+                      </div>
+                    </div>
                     <div className="stat-row">
                       <div className="stat-label">Pass TDs per Game</div>
                       <div className="stat-values">
                         <span className="stat-home">{data.offensive_breakdown.home.pass_tds_avg}</span>
                         <span className="stat-away">{data.offensive_breakdown.away.pass_tds_avg}</span>
+                      </div>
+                    </div>
+                    {/* Field Goals */}
+                    <div className="stat-row">
+                      <div className="stat-label">Field Goals per Game</div>
+                      <div className="stat-values">
+                        <span className="stat-home">{data.offensive_breakdown.home.field_goals_avg}</span>
+                        <span className="stat-away">{data.offensive_breakdown.away.field_goals_avg}</span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Field Goal Success Rate</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.offensive_breakdown.home.field_goals_made}/{data.offensive_breakdown.home.field_goals_attempted}
+                        </span>
+                        <span className="stat-away">
+                          {data.offensive_breakdown.away.field_goals_made}/{data.offensive_breakdown.away.field_goals_attempted}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Total Yards */}
+                    <div className="stat-row">
+                      <div className="stat-label">Total Yards per Game</div>
+                      <div className="stat-values">
+                        <span className="stat-home">{data.offensive_breakdown.home.total_yards_avg}</span>
+                        <span className="stat-away">{data.offensive_breakdown.away.total_yards_avg}</span>
                       </div>
                     </div>
                   </div>
@@ -440,8 +489,13 @@ function AnalyticsModal({ data, loading, onClose }) {
                   </p>
                 </div>
               )}
+                </>
+              )}
 
-              {/* QB Breakdown */}
+              {/* QB Stats Tab */}
+              {activeTab === 'qb' && (
+                <>
+                  {/* QB Breakdown */}
               {data.qb_breakdown && (
                 <div className="analytics-section">
                   <h3>Quarterback Stats</h3>
@@ -472,6 +526,17 @@ function AnalyticsModal({ data, loading, onClose }) {
                       </div>
                     </div>
                     <div className="stat-row">
+                      <div className="stat-label">Pass Attempts per Game</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.attempts_per_game : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.attempts_per_game : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
                       <div className="stat-label">Yards per Attempt</div>
                       <div className="stat-values">
                         <span className="stat-home">
@@ -479,6 +544,21 @@ function AnalyticsModal({ data, loading, onClose }) {
                         </span>
                         <span className="stat-away">
                           {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.yards_per_attempt : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">TD/INT</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available
+                            ? `${data.qb_breakdown.home.passing_tds}/${data.qb_breakdown.home.interceptions}`
+                            : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available
+                            ? `${data.qb_breakdown.away.passing_tds}/${data.qb_breakdown.away.interceptions}`
+                            : 'N/A'}
                         </span>
                       </div>
                     </div>
@@ -504,6 +584,28 @@ function AnalyticsModal({ data, loading, onClose }) {
                         </span>
                       </div>
                     </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Deep Throws per Game (20+ yards)</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? data.qb_breakdown.home.deep_attempts_per_game : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? data.qb_breakdown.away.deep_attempts_per_game : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Deep Pass Completion %</div>
+                      <div className="stat-values">
+                        <span className="stat-home">
+                          {data.qb_breakdown.home.data_available ? `${data.qb_breakdown.home.deep_completion_pct}%` : 'N/A'}
+                        </span>
+                        <span className="stat-away">
+                          {data.qb_breakdown.away.data_available ? `${data.qb_breakdown.away.deep_completion_pct}%` : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   <div className="stats-legend">
                     <span className="legend-home">{data.home_team}</span>
@@ -515,8 +617,58 @@ function AnalyticsModal({ data, loading, onClose }) {
                   </p>
                 </div>
               )}
+                </>
+              )}
 
-              {/* Feature Breakdown */}
+              {/* Coach Stats Tab */}
+              {activeTab === 'coach' && (
+                <div className="analytics-section">
+                  <h3>Coach Statistics</h3>
+                  <p className="section-description">
+                    Head coach experience and performance metrics (coming soon)
+                  </p>
+                  <div className="stats-comparison">
+                    <div className="stat-row">
+                      <div className="stat-label">Head Coach</div>
+                      <div className="stat-values">
+                        <span className="stat-home">Data Coming Soon</span>
+                        <span className="stat-away">Data Coming Soon</span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Career Win %</div>
+                      <div className="stat-values">
+                        <span className="stat-home">-</span>
+                        <span className="stat-away">-</span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Years Experience</div>
+                      <div className="stat-values">
+                        <span className="stat-home">-</span>
+                        <span className="stat-away">-</span>
+                      </div>
+                    </div>
+                    <div className="stat-row">
+                      <div className="stat-label">Playoff Appearances</div>
+                      <div className="stat-values">
+                        <span className="stat-home">-</span>
+                        <span className="stat-away">-</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="stats-legend">
+                    <span className="legend-home">{data.home_team}</span>
+                    <span className="legend-vs">vs</span>
+                    <span className="legend-away">{data.away_team}</span>
+                  </div>
+                  <p className="section-note">
+                    Coach statistics will be added in a future update
+                  </p>
+                </div>
+              )}
+
+              {/* Feature Breakdown - Visible on all tabs */}
               <div className="analytics-section">
                 <h3>Feature Contributions</h3>
                 <p className="section-description">

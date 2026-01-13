@@ -85,7 +85,7 @@ def fetch_qb_stats(seasons=[2024, 2023]) -> pd.DataFrame:
         qb_data = weekly_data[weekly_data['position'] == 'QB'].copy()
 
         # Aggregate by team and season (get primary QB stats)
-        qb_stats = qb_data.groupby(['recent_team', 'season']).agg({
+        agg_dict = {
             'completions': 'sum',
             'attempts': 'sum',
             'passing_yards': 'sum',
@@ -95,13 +95,73 @@ def fetch_qb_stats(seasons=[2024, 2023]) -> pd.DataFrame:
             'sack_yards': 'sum',
             'passing_air_yards': 'sum',
             'passing_yards_after_catch': 'sum',
-            'passing_epa': 'mean'  # Expected Points Added - advanced metric
-        }).reset_index()
+            'passing_epa': 'mean',  # Expected Points Added - advanced metric
+            'week': 'nunique'  # Count unique weeks (games played)
+        }
+
+        # Add deep passing stats if available (20+ air yards)
+        if 'dakota' in qb_data.columns:  # Check if advanced stats are available
+            agg_dict['dakota'] = 'mean'
+
+        qb_stats = qb_data.groupby(['recent_team', 'season']).agg(agg_dict).reset_index()
+
+        # Rename week count to games_played
+        qb_stats.rename(columns={'week': 'games_played'}, inplace=True)
+
+        # Fetch play-by-play data for deep pass statistics (20+ air yards)
+        try:
+            print("Fetching play-by-play data for deep pass stats...")
+            pbp_data = nfl.import_pbp_data(seasons)
+
+            # Filter for pass plays only
+            pass_plays = pbp_data[
+                (pbp_data['pass_attempt'] == 1) &
+                (pbp_data['air_yards'].notna())
+            ].copy()
+
+            # Filter for deep passes (20+ air yards)
+            deep_passes = pass_plays[pass_plays['air_yards'] >= 20].copy()
+
+            # Count deep pass attempts and completions by team and season
+            deep_stats = deep_passes.groupby(['posteam', 'season']).agg({
+                'pass_attempt': 'sum',  # Total deep attempts
+                'complete_pass': 'sum'  # Total deep completions
+            }).reset_index()
+
+            deep_stats.rename(columns={
+                'posteam': 'recent_team',
+                'pass_attempt': 'deep_attempts',
+                'complete_pass': 'deep_completions'
+            }, inplace=True)
+
+            # Merge deep stats with main qb_stats
+            qb_stats = qb_stats.merge(deep_stats, on=['recent_team', 'season'], how='left')
+
+            # Fill NaN values with 0 for teams without deep pass data
+            qb_stats['deep_attempts'] = qb_stats['deep_attempts'].fillna(0)
+            qb_stats['deep_completions'] = qb_stats['deep_completions'].fillna(0)
+
+            print(f"Loaded deep pass stats for {len(deep_stats)} team-seasons")
+
+        except Exception as deep_error:
+            print(f"Warning: Could not fetch deep pass stats: {deep_error}")
+            # Set default values if deep stats unavailable
+            qb_stats['deep_attempts'] = 0
+            qb_stats['deep_completions'] = 0
 
         # Calculate derived stats
         qb_stats['completion_pct'] = (qb_stats['completions'] / qb_stats['attempts'] * 100).round(1)
         qb_stats['yards_per_attempt'] = (qb_stats['passing_yards'] / qb_stats['attempts']).round(1)
         qb_stats['td_int_ratio'] = (qb_stats['passing_tds'] / qb_stats['interceptions'].replace(0, 1)).round(2)
+        qb_stats['attempts_per_game'] = (qb_stats['attempts'] / qb_stats['games_played']).round(1)
+
+        # Calculate deep pass stats
+        qb_stats['deep_attempts_per_game'] = (qb_stats['deep_attempts'] / qb_stats['games_played']).round(1)
+        qb_stats['deep_completion_pct'] = (
+            (qb_stats['deep_completions'] / qb_stats['deep_attempts'] * 100)
+            .where(qb_stats['deep_attempts'] > 0, 0)
+            .round(1)
+        )
 
         # Calculate passer rating (NFL formula)
         qb_stats['passer_rating'] = calculate_passer_rating(
@@ -141,6 +201,49 @@ def calculate_passer_rating(completions, attempts, yards, tds, ints):
     rating = ((a + b + c + d) / 6) * 100
     return rating.round(1)
 
+def fetch_field_goal_stats(seasons: list = [2024, 2023]) -> pd.DataFrame:
+    """
+    Fetch real field goal statistics by team and game from nfl-data-py.
+
+    Returns DataFrame with columns:
+    - team: team abbreviation
+    - season: season year
+    - week: week number
+    - game_id: unique game identifier
+    - field_goals_made: number of FGs made in that game
+    - field_goals_attempted: number of FGs attempted in that game
+    """
+    try:
+        print(f"Fetching field goal stats for seasons: {seasons}...")
+
+        # Import play-by-play data
+        pbp_data = nfl.import_pbp_data(seasons)
+
+        # Filter for field goal attempts only
+        fg_plays = pbp_data[pbp_data['field_goal_attempt'] == 1].copy()
+
+        # Create a binary column for made field goals
+        fg_plays['fg_made'] = (fg_plays['field_goal_result'] == 'made').astype(int)
+
+        # Group by team, season, week, and game to get per-game FG stats
+        fg_stats = fg_plays.groupby(['posteam', 'season', 'week', 'game_id']).agg({
+            'field_goal_attempt': 'sum',  # Total FG attempts
+            'fg_made': 'sum'  # Total FGs made
+        }).reset_index()
+
+        fg_stats.rename(columns={
+            'posteam': 'team',
+            'field_goal_attempt': 'field_goals_attempted',
+            'fg_made': 'field_goals_made'
+        }, inplace=True)
+
+        print(f"Loaded field goal stats for {len(fg_stats)} team-games")
+        return fg_stats
+
+    except Exception as e:
+        print(f"Warning: Could not fetch field goal stats: {e}")
+        return pd.DataFrame()
+
 def create_placeholder_qb_stats() -> pd.DataFrame:
     """
     Create placeholder QB stats if API fetch fails.
@@ -179,6 +282,53 @@ TEAM_NAME_MAP = {
     'Cardinals': 'ARI', 'Panthers': 'CAR', 'Giants': 'NYG', 'Commanders': 'WAS'
 }
 
+def get_team_fg_stats(team: str, window: int = 4) -> dict:
+    """
+    Get field goal stats for a specific team from the global team_fg_stats DataFrame.
+    Calculates rolling stats over the most recent games.
+
+    Args:
+        team: Team name (will be mapped to abbreviation)
+        window: Number of recent games to average over
+
+    Returns:
+        Dictionary with FG stats or None if no data available
+    """
+    global team_fg_stats
+
+    # Map team name to abbreviation
+    team_abbr = TEAM_NAME_MAP.get(team, team)
+
+    if team_fg_stats is None or team_fg_stats.empty:
+        return None
+
+    # Filter for this team
+    team_data = team_fg_stats[team_fg_stats['team'] == team_abbr].copy()
+
+    if team_data.empty:
+        return None
+
+    # Sort by season and week to get most recent games
+    team_data = team_data.sort_values(['season', 'week'], ascending=[False, False])
+
+    # Take the most recent 'window' games
+    recent_games = team_data.head(window)
+
+    # Calculate totals over the window
+    fg_made = int(recent_games['field_goals_made'].sum())
+    fg_attempted = int(recent_games['field_goals_attempted'].sum())
+
+    # Calculate averages and success rate
+    fg_avg = round(recent_games['field_goals_made'].mean(), 1)
+    fg_success_rate = round((fg_made / fg_attempted * 100) if fg_attempted > 0 else 0, 1)
+
+    return {
+        'field_goals_avg': fg_avg,
+        'field_goals_made': fg_made,
+        'field_goals_attempted': fg_attempted,
+        'field_goal_success_rate': fg_success_rate
+    }
+
 def get_team_qb_stats(team: str) -> dict:
     """
     Get QB stats for a specific team from the global qb_stats DataFrame.
@@ -197,6 +347,11 @@ def get_team_qb_stats(team: str) -> dict:
             "yards_per_attempt": "N/A",
             "td_int_ratio": "N/A",
             "passing_epa": "N/A",
+            "attempts_per_game": "N/A",
+            "passing_tds": "N/A",
+            "interceptions": "N/A",
+            "deep_attempts_per_game": "N/A",
+            "deep_completion_pct": "N/A",
             "data_available": False
         }
 
@@ -211,6 +366,11 @@ def get_team_qb_stats(team: str) -> dict:
             "yards_per_attempt": "N/A",
             "td_int_ratio": "N/A",
             "passing_epa": "N/A",
+            "attempts_per_game": "N/A",
+            "passing_tds": "N/A",
+            "interceptions": "N/A",
+            "deep_attempts_per_game": "N/A",
+            "deep_completion_pct": "N/A",
             "data_available": False
         }
 
@@ -222,11 +382,16 @@ def get_team_qb_stats(team: str) -> dict:
 
     return {
         "team": team,
-        "passer_rating": float(stats['passer_rating']),
-        "completion_pct": float(stats['completion_pct']),
-        "yards_per_attempt": float(stats['yards_per_attempt']),
-        "td_int_ratio": float(stats['td_int_ratio']),
-        "passing_epa": round(float(stats['passing_epa']), 3),
+        "passer_rating": round(float(stats['passer_rating']), 1),
+        "completion_pct": round(float(stats['completion_pct']), 1),
+        "yards_per_attempt": round(float(stats['yards_per_attempt']), 1),
+        "td_int_ratio": round(float(stats['td_int_ratio']), 1),
+        "passing_epa": round(float(stats['passing_epa']), 1),
+        "attempts_per_game": round(float(stats['attempts_per_game']), 1),
+        "passing_tds": int(stats['passing_tds']),
+        "interceptions": int(stats['interceptions']),
+        "deep_attempts_per_game": round(float(stats['deep_attempts_per_game']), 1),
+        "deep_completion_pct": round(float(stats['deep_completion_pct']), 1),
         "season": int(stats['season']),
         "data_available": True
     }
@@ -295,9 +460,18 @@ def create_sample_data() -> pd.DataFrame:
         home_pass_tds = np.random.randint(0, 4)
         away_pass_tds = np.random.randint(0, 4)
 
+        # Simulate field goals (realistic NFL ranges: 1-4 FGs made per game)
+        home_field_goals = np.random.randint(1, 5)
+        away_field_goals = np.random.randint(1, 5)
+
+        # Simulate field goal attempts (attempts >= made, typical success rate ~80-90%)
+        # Add 0-2 misses to each team's made field goals
+        home_field_goal_attempts = home_field_goals + np.random.randint(0, 3)
+        away_field_goal_attempts = away_field_goals + np.random.randint(0, 3)
+
         # Calculate total scores from TDs (simplified: TD = 7 points, add some FGs)
-        home_score = (home_rush_tds + home_pass_tds) * 7 + np.random.randint(0, 10)
-        away_score = (away_rush_tds + away_pass_tds) * 7 + np.random.randint(0, 10)
+        home_score = (home_rush_tds + home_pass_tds) * 7 + home_field_goals * 3
+        away_score = (away_rush_tds + away_pass_tds) * 7 + away_field_goals * 3
 
         data.append({
             'date': date,
@@ -316,6 +490,10 @@ def create_sample_data() -> pd.DataFrame:
             'away_rush_tds': away_rush_tds,
             'home_pass_tds': home_pass_tds,
             'away_pass_tds': away_pass_tds,
+            'home_field_goals': home_field_goals,
+            'away_field_goals': away_field_goals,
+            'home_field_goal_attempts': home_field_goal_attempts,
+            'away_field_goal_attempts': away_field_goal_attempts,
             # Defensive stats (yards allowed)
             'home_rush_yards_allowed': away_rush_yards,  # Home defense vs away rush
             'away_rush_yards_allowed': home_rush_yards,  # Away defense vs home rush
@@ -403,6 +581,8 @@ def calculate_rolling_averages(df: pd.DataFrame, window: int = ROLLING_WINDOW) -
         'home_pass_yards', 'away_pass_yards',
         'home_rush_tds', 'away_rush_tds',
         'home_pass_tds', 'away_pass_tds',
+        'home_field_goals', 'away_field_goals',
+        'home_field_goal_attempts', 'away_field_goal_attempts',
         'home_rush_yards_allowed', 'away_rush_yards_allowed',
         'home_pass_yards_allowed', 'away_pass_yards_allowed'
     ])
@@ -430,11 +610,15 @@ def calculate_rolling_averages(df: pd.DataFrame, window: int = ROLLING_WINDOW) -
             home_games['pass_yards'] = home_games['home_pass_yards']
             home_games['rush_tds'] = home_games['home_rush_tds']
             home_games['pass_tds'] = home_games['home_pass_tds']
+            home_games['field_goals'] = home_games['home_field_goals']
+            home_games['field_goal_attempts'] = home_games['home_field_goal_attempts']
 
             away_games['rush_yards'] = away_games['away_rush_yards']
             away_games['pass_yards'] = away_games['away_pass_yards']
             away_games['rush_tds'] = away_games['away_rush_tds']
             away_games['pass_tds'] = away_games['away_pass_tds']
+            away_games['field_goals'] = away_games['away_field_goals']
+            away_games['field_goal_attempts'] = away_games['away_field_goal_attempts']
 
             # Defensive stats (yards allowed)
             home_games['rush_yards_allowed'] = home_games['home_rush_yards_allowed']
@@ -446,7 +630,7 @@ def calculate_rolling_averages(df: pd.DataFrame, window: int = ROLLING_WINDOW) -
         # Select columns for concatenation
         base_cols = ['date', 'points_scored', 'points_allowed',
                      'turnovers_committed', 'turnovers_forced']
-        detail_cols = ['rush_yards', 'pass_yards', 'rush_tds', 'pass_tds',
+        detail_cols = ['rush_yards', 'pass_yards', 'rush_tds', 'pass_tds', 'field_goals', 'field_goal_attempts',
                        'rush_yards_allowed', 'pass_yards_allowed'] if has_detailed_stats else []
 
         # Combine and sort by date
@@ -475,6 +659,22 @@ def calculate_rolling_averages(df: pd.DataFrame, window: int = ROLLING_WINDOW) -
                 window=window, min_periods=1).mean()
             team_games['pass_tds_avg'] = team_games['pass_tds'].rolling(
                 window=window, min_periods=1).mean()
+            team_games['field_goals_avg'] = team_games['field_goals'].rolling(
+                window=window, min_periods=1).mean()
+            team_games['field_goal_attempts_avg'] = team_games['field_goal_attempts'].rolling(
+                window=window, min_periods=1).mean()
+
+            # Calculate FG totals over rolling window for display as "X/Y"
+            team_games['field_goals_made_total'] = team_games['field_goals'].rolling(
+                window=window, min_periods=1).sum()
+            team_games['field_goals_attempted_total'] = team_games['field_goal_attempts'].rolling(
+                window=window, min_periods=1).sum()
+
+            # Calculate FG success rate (avoid division by zero)
+            team_games['field_goal_success_rate'] = (
+                (team_games['field_goals_made_total'] / team_games['field_goals_attempted_total'] * 100)
+                .fillna(0)
+            )
 
             # Defensive rolling averages (yards allowed)
             team_games['rush_yards_allowed_avg'] = team_games['rush_yards_allowed'].rolling(
@@ -745,13 +945,14 @@ elo_system: EloRatingSystem = None
 team_stats: pd.DataFrame = None
 historical_df: pd.DataFrame = None
 qb_stats: pd.DataFrame = None
+team_fg_stats: pd.DataFrame = None
 
 def initialize_model():
     """
     Load data, train model, and initialize global state.
     Called once on startup.
     """
-    global model, scaler, elo_system, team_stats, historical_df, qb_stats
+    global model, scaler, elo_system, team_stats, historical_df, qb_stats, team_fg_stats
 
     print("Loading historical data...")
     historical_df = load_historical_data()
@@ -770,6 +971,9 @@ def initialize_model():
 
     print("Fetching real QB stats...")
     qb_stats = fetch_qb_stats(seasons=[2024, 2023])
+
+    print("Fetching real field goal stats...")
+    team_fg_stats = fetch_field_goal_stats(seasons=[2024, 2023])
 
     print("Model initialization complete!")
 
@@ -942,6 +1146,20 @@ async def get_game_analytics(home_team: str, away_team: str):
                 home_rush_yards_allowed = 120.0
                 home_pass_yards_allowed = 250.0
 
+        # Get real field goal stats for home team
+        home_fg_stats = get_team_fg_stats(home_team)
+        if home_fg_stats:
+            home_field_goals = home_fg_stats['field_goals_avg']
+            home_field_goal_success_rate = home_fg_stats['field_goal_success_rate']
+            home_field_goals_made = home_fg_stats['field_goals_made']
+            home_field_goals_attempted = home_fg_stats['field_goals_attempted']
+        else:
+            # Fallback to defaults if no real data available
+            home_field_goals = 2.0
+            home_field_goal_success_rate = 85.0
+            home_field_goals_made = 8
+            home_field_goals_attempted = 10
+
         if away_stats.empty:
             away_off = 24.0
             away_def = 24.0
@@ -970,6 +1188,20 @@ async def get_game_analytics(home_team: str, away_team: str):
                 away_pass_tds = 2.0
                 away_rush_yards_allowed = 120.0
                 away_pass_yards_allowed = 250.0
+
+        # Get real field goal stats for away team
+        away_fg_stats = get_team_fg_stats(away_team)
+        if away_fg_stats:
+            away_field_goals = away_fg_stats['field_goals_avg']
+            away_field_goal_success_rate = away_fg_stats['field_goal_success_rate']
+            away_field_goals_made = away_fg_stats['field_goals_made']
+            away_field_goals_attempted = away_fg_stats['field_goals_attempted']
+        else:
+            # Fallback to defaults if no real data available
+            away_field_goals = 2.0
+            away_field_goal_success_rate = 85.0
+            away_field_goals_made = 8
+            away_field_goals_attempted = 10
 
         # Build feature vector
         features = np.array([[
@@ -1087,6 +1319,10 @@ async def get_game_analytics(home_team: str, away_team: str):
                     "pass_yards_avg": round(home_pass_yards, 1),
                     "rush_tds_avg": round(home_rush_tds, 2),
                     "pass_tds_avg": round(home_pass_tds, 2),
+                    "field_goals_avg": round(home_field_goals, 1),
+                    "field_goal_success_rate": round(home_field_goal_success_rate, 1),
+                    "field_goals_made": home_field_goals_made,
+                    "field_goals_attempted": home_field_goals_attempted,
                     "total_yards_avg": round(home_rush_yards + home_pass_yards, 1)
                 },
                 "away": {
@@ -1094,6 +1330,10 @@ async def get_game_analytics(home_team: str, away_team: str):
                     "pass_yards_avg": round(away_pass_yards, 1),
                     "rush_tds_avg": round(away_rush_tds, 2),
                     "pass_tds_avg": round(away_pass_tds, 2),
+                    "field_goals_avg": round(away_field_goals, 1),
+                    "field_goal_success_rate": round(away_field_goal_success_rate, 1),
+                    "field_goals_made": away_field_goals_made,
+                    "field_goals_attempted": away_field_goals_attempted,
                     "total_yards_avg": round(away_rush_yards + away_pass_yards, 1)
                 }
             },
